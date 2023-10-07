@@ -11,8 +11,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HipHopPizzaBackend.Migrations
 {
     [DbContext(typeof(HipHopPizzaDbContext))]
-    [Migration("20231006003108_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20231007190342_NullablePricesInOrder")]
+    partial class NullablePricesInOrder
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -56,14 +56,12 @@ namespace HipHopPizzaBackend.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Comments")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("DateClosed")
+                    b.Property<DateTime?>("DateClosed")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
@@ -78,14 +76,13 @@ namespace HipHopPizzaBackend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Phone")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Tip")
+                    b.Property<decimal?>("Tip")
                         .HasColumnType("numeric");
 
-                    b.Property<int>("TotalPrice")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("TotalPrice")
+                        .HasColumnType("numeric");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer");

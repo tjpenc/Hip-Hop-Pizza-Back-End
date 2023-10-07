@@ -89,7 +89,7 @@ namespace HipHopPizzaBackend.Migrations
                     Phone = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
                     OrderType = table.Column<string>(type: "text", nullable: false),
-                    TotalPrice = table.Column<int>(type: "integer", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "numeric", nullable: false),
                     isOpen = table.Column<bool>(type: "boolean", nullable: false),
                     Tip = table.Column<decimal>(type: "numeric", nullable: false),
                     DateClosed = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
@@ -113,7 +113,7 @@ namespace HipHopPizzaBackend.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "OrderItem",
+                name: "ItemOrder",
                 columns: table => new
                 {
                     ItemsId = table.Column<int>(type: "integer", nullable: false),
@@ -121,15 +121,15 @@ namespace HipHopPizzaBackend.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_OrderItem", x => new { x.ItemsId, x.OrdersId });
+                    table.PrimaryKey("PK_ItemOrder", x => new { x.ItemsId, x.OrdersId });
                     table.ForeignKey(
-                        name: "FK_OrderItem_Items_ItemsId",
+                        name: "FK_ItemOrder_Items_ItemsId",
                         column: x => x.ItemsId,
                         principalTable: "Items",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_OrderItem_Orders_OrdersId",
+                        name: "FK_ItemOrder_Orders_OrdersId",
                         column: x => x.OrdersId,
                         principalTable: "Orders",
                         principalColumn: "Id",
@@ -137,8 +137,8 @@ namespace HipHopPizzaBackend.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_OrderItem_OrdersId",
-                table: "OrderItem",
+                name: "IX_ItemOrder_OrdersId",
+                table: "ItemOrder",
                 column: "OrdersId");
 
             migrationBuilder.CreateIndex(
@@ -160,7 +160,7 @@ namespace HipHopPizzaBackend.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "OrderItem");
+                name: "ItemOrder");
 
             migrationBuilder.DropTable(
                 name: "Revenues");
