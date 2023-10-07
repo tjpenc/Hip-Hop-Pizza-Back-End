@@ -349,5 +349,35 @@ app.MapGet("/paymentTypes/{id}", (HipHopPizzaDbContext db, int id) =>
     return Results.Ok(paymentType);
 });
 
+//Create revenue node
+app.MapPost("/revenueNodes", (HipHopPizzaDbContext db, Order order) =>
+{
+    PaymentType paymentType = db.PaymentTypes.FirstOrDefault(pt => pt.Id == order.PaymentTypeId);
+    Revenue revenueNode = new()
+    {
+        OrderId = order.Id,
+        PaymentTypeId = order.PaymentTypeId,
+        OrderTotal = order.TotalPrice,
+        Tip = order.Tip,
+        DateClosed = DateTime.Now,
+        PaymentType = paymentType
+    };
+
+    db.Revenues.Add(revenueNode);
+    db.SaveChanges();
+    return Results.Created($"/revenueNodes/{revenueNode.Id}", revenueNode);
+});
+
+//Get total revenue
+app.MapGet("/revenue", (HipHopPizzaDbContext db) =>
+{
+    List<Revenue> revenueNodes = db.Revenues.ToList();
+    decimal? totalRevenue = 0;
+    foreach (Revenue revenueNode in revenueNodes)
+    {
+        totalRevenue += revenueNode.OrderTotal;
+    }
+});
+//If there are issues it may be due to nullable ? on the revenue not being in the database - redo migrations if so
 app.Run();
 
