@@ -327,5 +327,27 @@ app.MapDelete("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int 
     return Results.NoContent();
 });
 
+//Get all payment types
+app.MapGet("/paymentTypes", (HipHopPizzaDbContext db) =>
+{
+    List<PaymentType> paymentTypes = db.PaymentTypes.ToList();
+    if (!paymentTypes.Any())
+    {
+        return Results.NotFound("No payment types are available");
+    }
+    return Results.Ok(paymentTypes);
+});
+
+//Get single payment type
+app.MapGet("/paymentTypes/{id}", (HipHopPizzaDbContext db, int id) =>
+{
+    PaymentType paymentType = db.PaymentTypes.FirstOrDefault(pt => pt.Id == id);
+    if (paymentType == null)
+    {
+        return Results.NotFound("Payment type was not found");
+    }
+    return Results.Ok(paymentType);
+});
+
 app.Run();
 
