@@ -5,6 +5,7 @@ using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.Json;
 using System.Numerics;
 using System.Xml.Linq;
+using Microsoft.AspNetCore.Http.Features;
 
 var DefaultCors = "_DefaultCors";
 
@@ -185,6 +186,145 @@ app.MapPut("/orders/{id}/close", (HipHopPizzaDbContext db, int id, UpdateOrderDT
     db.Update(orderToUpdate);
     db.SaveChanges();
     return Results.Ok(orderToUpdate);
+});
+
+//Update order price
+app.MapPut("/orders/price/{id}", (HipHopPizzaDbContext db, int id, UpdateOrderDTO order) =>
+{
+    Order orderToUpdate = db.Orders.FirstOrDefault(o => o.Id == id);
+    if (orderToUpdate == null)
+    {
+        return Results.NotFound("This order does not exist");
+    }
+
+    orderToUpdate.UserId = order.UserId;
+    orderToUpdate.PaymentTypeId = order.PaymentTypeId;
+    orderToUpdate.Name = order.Name;
+    orderToUpdate.Phone = order.Phone;
+    orderToUpdate.Email = order.Email;
+    orderToUpdate.OrderType = order.OrderType;
+
+    decimal totalPrice = 0;
+    foreach (Item item in orderToUpdate.Items)
+    {
+        totalPrice += item.Price;
+    }
+    orderToUpdate.TotalPrice = totalPrice;
+
+    db.Update(orderToUpdate);
+    db.SaveChanges();
+    return Results.Ok(orderToUpdate);
+});
+
+//Get items
+app.MapGet("/items", (HipHopPizzaDbContext db) =>
+{
+    List<Item> items = db.Items.ToList();
+    if (!items.Any())
+    {
+        return Results.NotFound("There are no items");
+    }
+    return Results.Ok(items);
+});
+
+//Get single item
+app.MapGet("/items/{id}", (HipHopPizzaDbContext db, int id) =>
+{
+    Item item = db.Items
+    .Include(i => i.Orders)
+    .FirstOrDefault(i => i.Id == id);
+    if (item == null)
+    {
+        return Results.NotFound("The item was not found");
+    }
+    return Results.Ok(item);
+});
+
+//Create item
+app.MapPost("/items", (HipHopPizzaDbContext db, CreateItemDTO item) =>
+{
+    Item itemEntity = new()
+    {
+        Name = item.Name,
+        ImageUrl = item.ImageUrl,
+        Price = item.Price
+    };
+
+    try
+    {
+        db.Items.Add(itemEntity);
+        db.SaveChanges();
+        return Results.Created($"/items/{itemEntity.Id}", itemEntity);
+    }
+    catch (DbUpdateException)
+    {
+        return Results.NoContent();
+    }
+});
+
+//Update item
+app.MapPut("/items/{id}", (HipHopPizzaDbContext db, int id, UpdateItemDTO item) =>
+{
+    Item itemToUpdate = db.Items.FirstOrDefault(i => i.Id == id);
+    itemToUpdate.Name = item.Name;
+    itemToUpdate.ImageUrl = item.ImageUrl;
+    itemToUpdate.Price = item.Price;
+
+    db.Update(itemToUpdate);
+    db.SaveChanges();
+    return Results.Ok();
+
+});
+
+//Delete item from menu
+app.MapDelete("/items/{id}", (HipHopPizzaDbContext db, int id) =>
+{
+    Item item = db.Items.FirstOrDefault(i => i.Id == id);
+    if (item == null)
+    {
+        return Results.NotFound("Item was not found");
+    }
+    db.Remove(item);
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
+//Add item to order
+app.MapPut("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId, CreateOrderDTO order) =>
+{
+    Order orderToUpdate = db.Orders
+    .Include(o => o.Items)
+    .FirstOrDefault(o => o.Id == orderId);
+
+    Item itemToAdd = db.Items.FirstOrDefault(i => i.Id == itemId);
+
+    orderToUpdate.UserId = order.UserId;
+    orderToUpdate.PaymentTypeId = order.PaymentTypeId;
+    orderToUpdate.Name = order.Name;
+    orderToUpdate.Phone = order.Phone;
+    orderToUpdate.Email = order.Email;
+    orderToUpdate.OrderType = order.OrderType;
+    orderToUpdate.Items.Add(itemToAdd);
+
+    db.Update(orderToUpdate);
+    db.SaveChanges();
+    return Results.Ok(orderToUpdate);
+});
+
+//Delete item from order
+app.MapDelete("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
+{
+    Order order = db.Orders
+    .Include(o => o.Items.Where(i => i.Id == itemId))
+    .FirstOrDefault(o => o.Id == orderId);
+
+    if (order != null)
+    {
+        Item itemToRemove = order.Items.FirstOrDefault(i => i.Id == itemId);
+        order.Items.Remove(itemToRemove);
+    }
+    db.SaveChanges();
+    return Results.NoContent();
 });
 
 app.Run();
