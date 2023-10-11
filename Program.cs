@@ -57,7 +57,7 @@ app.UseHttpsRedirection();
 //Check user
 app.MapGet("/checkuser/{uid}", (HipHopPizzaDbContext db, string uid) =>
 {
-    var user = db.Users.Where(x => x.UID == uid).ToList();
+    var user = db.Users.Where(u => u.UID == uid).ToList();
     if (user == null)
     {
         return Results.NotFound();
@@ -102,16 +102,17 @@ app.MapPost("/orders", (HipHopPizzaDbContext db, CreateOrderDTO order) =>
 {
     Order orderEntity = new Order()
     {
-        UserId = order.UserId,
         PaymentTypeId = order.PaymentTypeId,
         Name = order.Name,
         Phone = order.Phone,
         Email = order.Email,
         OrderType = order.OrderType
     };
+    User user = db.Users.FirstOrDefault(o => o.UID === order.userId)
     orderEntity.User = db.Users.FirstOrDefault(u => u.Id == order.UserId);
     orderEntity.PaymentType = db.PaymentTypes.FirstOrDefault(pt => pt.Id == order.PaymentTypeId);
     orderEntity.isOpen = true;
+    orderEntity.TotalPrice = 0;
 
     try
     {
@@ -150,7 +151,7 @@ app.MapPut("/orders/{id}", (HipHopPizzaDbContext db, int id, UpdateOrderDTO orde
 });
 
 //Delete Order
-app.MapDelete("/orders", (HipHopPizzaDbContext db, int id) =>
+app.MapDelete("/orders/{id}", (HipHopPizzaDbContext db, int id) =>
 {
     Order order = db.Orders.FirstOrDefault(o => o.Id == id);
     if (order == null)
