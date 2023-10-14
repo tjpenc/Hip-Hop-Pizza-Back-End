@@ -102,15 +102,14 @@ app.MapPost("/orders", (HipHopPizzaDbContext db, CreateOrderDTO order) =>
 {
     Order orderEntity = new Order()
     {
-        PaymentTypeId = order.PaymentTypeId,
         Name = order.Name,
         Phone = order.Phone,
         Email = order.Email,
         OrderType = order.OrderType
     };
-    User user = db.Users.FirstOrDefault(o => o.UID === order.userId)
-    orderEntity.User = db.Users.FirstOrDefault(u => u.Id == order.UserId);
-    orderEntity.PaymentType = db.PaymentTypes.FirstOrDefault(pt => pt.Id == order.PaymentTypeId);
+    User user = db.Users.FirstOrDefault(u => u.UID == order.UID);
+    orderEntity.UserId = user.Id;
+    orderEntity.User = user;
     orderEntity.isOpen = true;
     orderEntity.TotalPrice = 0;
 
@@ -135,15 +134,10 @@ app.MapPut("/orders/{id}", (HipHopPizzaDbContext db, int id, UpdateOrderDTO orde
         return Results.NotFound("This order does not exist");
     }
 
-    orderToUpdate.UserId = order.UserId;
-    orderToUpdate.PaymentTypeId = order.PaymentTypeId;
     orderToUpdate.Name = order.Name;
     orderToUpdate.Phone = order.Phone;
     orderToUpdate.Email = order.Email;
     orderToUpdate.OrderType = order.OrderType;
-    orderToUpdate.TotalPrice = order.TotalPrice;
-    orderToUpdate.Tip = order.Tip;
-    orderToUpdate.Comments = order.Comments;
 
     db.Update(orderToUpdate);
     db.SaveChanges();
@@ -164,7 +158,7 @@ app.MapDelete("/orders/{id}", (HipHopPizzaDbContext db, int id) =>
 });
 
 //Close order
-app.MapPut("/orders/{id}/close", (HipHopPizzaDbContext db, int id, UpdateOrderDTO order) =>
+app.MapPut("/orders/{id}/close", (HipHopPizzaDbContext db, int id, CloseOrderDTO order) =>
 {
     Order orderToUpdate = db.Orders.FirstOrDefault(o => o.Id == id);
     if (orderToUpdate == null)
@@ -172,16 +166,11 @@ app.MapPut("/orders/{id}/close", (HipHopPizzaDbContext db, int id, UpdateOrderDT
         return Results.NotFound("This order does not exist");
     }
 
-    orderToUpdate.UserId = order.UserId;
     orderToUpdate.PaymentTypeId = order.PaymentTypeId;
-    orderToUpdate.Name = order.Name;
-    orderToUpdate.Phone = order.Phone;
-    orderToUpdate.Email = order.Email;
-    orderToUpdate.OrderType = order.OrderType;
-    orderToUpdate.TotalPrice = order.TotalPrice;
     orderToUpdate.Tip = order.Tip;
     orderToUpdate.Comments = order.Comments;
     orderToUpdate.DateClosed = DateTime.Now;
+    orderToUpdate.TotalPrice += order.Tip;
     orderToUpdate.isOpen = false;
 
     db.Update(orderToUpdate);
@@ -190,7 +179,7 @@ app.MapPut("/orders/{id}/close", (HipHopPizzaDbContext db, int id, UpdateOrderDT
 });
 
 //Update order price
-app.MapPut("/orders/price/{id}", (HipHopPizzaDbContext db, int id, UpdateOrderDTO order) =>
+app.MapPut("/orders/price/{id}", (HipHopPizzaDbContext db, int id) =>
 {
     Order orderToUpdate = db.Orders.FirstOrDefault(o => o.Id == id);
     if (orderToUpdate == null)
@@ -198,21 +187,18 @@ app.MapPut("/orders/price/{id}", (HipHopPizzaDbContext db, int id, UpdateOrderDT
         return Results.NotFound("This order does not exist");
     }
 
-    orderToUpdate.UserId = order.UserId;
-    orderToUpdate.PaymentTypeId = order.PaymentTypeId;
-    orderToUpdate.Name = order.Name;
-    orderToUpdate.Phone = order.Phone;
-    orderToUpdate.Email = order.Email;
-    orderToUpdate.OrderType = order.OrderType;
+    List<OrderItem> orderItems = db.OrderItems
+    .Include(oi => oi.Item)
+    .Where(oi => oi.OrderId == id).ToList();
 
     decimal totalPrice = 0;
-    foreach (Item item in orderToUpdate.Items)
+    foreach (OrderItem orderItem in orderItems)
     {
-        totalPrice += item.Price;
+        totalPrice += orderItem.Item.Price;
     }
     orderToUpdate.TotalPrice = totalPrice;
 
-    db.Update(orderToUpdate);
+    db.Orders.Update(orderToUpdate);
     db.SaveChanges();
     return Results.Ok(orderToUpdate);
 });
@@ -273,8 +259,7 @@ app.MapPut("/items/{id}", (HipHopPizzaDbContext db, int id, UpdateItemDTO item) 
 
     db.Update(itemToUpdate);
     db.SaveChanges();
-    return Results.Ok();
-
+    return Results.Ok(itemToUpdate);
 });
 
 //Delete item from menu
@@ -291,41 +276,56 @@ app.MapDelete("/items/{id}", (HipHopPizzaDbContext db, int id) =>
 });
 
 //Add item to order
-app.MapPut("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId, CreateOrderDTO order) =>
+app.MapPost("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
 {
-    Order orderToUpdate = db.Orders
-    .Include(o => o.Items)
-    .FirstOrDefault(o => o.Id == orderId);
+    OrderItem orderItem = new OrderItem()
+    {
+        OrderId = orderId,
+        ItemId = itemId,
+        //Quantity = itemCount
+    };
 
-    Item itemToAdd = db.Items.FirstOrDefault(i => i.Id == itemId);
-
-    orderToUpdate.UserId = order.UserId;
-    orderToUpdate.PaymentTypeId = order.PaymentTypeId;
-    orderToUpdate.Name = order.Name;
-    orderToUpdate.Phone = order.Phone;
-    orderToUpdate.Email = order.Email;
-    orderToUpdate.OrderType = order.OrderType;
-    orderToUpdate.Items.Add(itemToAdd);
-
-    db.Update(orderToUpdate);
+    db.OrderItems.Add(orderItem);
     db.SaveChanges();
-    return Results.Ok(orderToUpdate);
+    return Results.Ok(orderItem);
+    //Possibilty of adding multiple items at a time
+    //One endpoint for add item, one endpoint for update item
+    //Create quantity property on OrderItem, update that when same item added twice
 });
 
 //Delete item from order
 app.MapDelete("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
 {
-    Order order = db.Orders
-    .Include(o => o.Items.Where(i => i.Id == itemId))
-    .FirstOrDefault(o => o.Id == orderId);
-
-    if (order != null)
+    OrderItem orderItem = db.OrderItems.FirstOrDefault(oi => oi.OrderId == orderId && oi.ItemId == itemId);
+    if (orderItem == null)
     {
-        Item itemToRemove = order.Items.FirstOrDefault(i => i.Id == itemId);
-        order.Items.Remove(itemToRemove);
+        return Results.NoContent();
     }
+    db.OrderItems.Remove(orderItem);
     db.SaveChanges();
     return Results.NoContent();
+});
+
+//Count same item in an order
+app.MapGet("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
+{
+    List<OrderItem> orderItems = db.OrderItems.Where(oi => oi.OrderId == orderId && oi.ItemId == itemId).ToList();
+    int count = orderItems.Count();
+    return Results.Ok(count);
+});
+
+//Get all OrderItems for an order
+app.MapGet("/orders/items/{orderId}", (HipHopPizzaDbContext db, int orderId) =>
+{
+    List<OrderItem> orderItems = db.OrderItems
+        .Include(oi => oi.Item)
+        .Where(oi => oi.OrderId == orderId).ToList();
+
+    if (orderItems.Count == 0)
+    {
+        return Results.NotFound("There are no items in this order");
+    }
+    return Results.Ok(orderItems);
 });
 
 //Get all payment types
@@ -358,6 +358,7 @@ app.MapPost("/revenueNodes", (HipHopPizzaDbContext db, Order order) =>
     {
         OrderId = order.Id,
         PaymentTypeId = order.PaymentTypeId,
+        OrderType = order.OrderType,
         OrderTotal = order.TotalPrice,
         Tip = order.Tip,
         DateClosed = DateTime.Now,
@@ -378,7 +379,21 @@ app.MapGet("/revenue", (HipHopPizzaDbContext db) =>
     {
         totalRevenue += revenueNode.OrderTotal;
     }
+    return Results.Ok(totalRevenue);
 });
-//If there are issues it may be due to nullable ? on the revenue not being in the database - redo migrations if so
+
+//Delete Revenue node
+app.MapDelete("revenue/{orderId}", (HipHopPizzaDbContext db, int orderId) =>
+{
+    Revenue revenueNode = db.Revenues.FirstOrDefault(r => r.OrderId == orderId);
+    if (revenueNode == null)
+    {
+        return Results.NoContent();
+    }
+    db.Revenues.Remove(revenueNode);
+    db.SaveChanges();
+    return Results.NoContent();
+});
+
 app.Run();
 

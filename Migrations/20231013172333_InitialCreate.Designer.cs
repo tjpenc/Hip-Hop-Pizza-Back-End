@@ -11,7 +11,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace HipHopPizzaBackend.Migrations
 {
     [DbContext(typeof(HipHopPizzaDbContext))]
-    [Migration("20231007183756_InitialCreate")]
+    [Migration("20231013172333_InitialCreate")]
     partial class InitialCreate
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -56,14 +56,12 @@ namespace HipHopPizzaBackend.Migrations
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Comments")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("DateClosed")
+                    b.Property<DateTime?>("DateClosed")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Email")
-                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("Name")
@@ -78,13 +76,12 @@ namespace HipHopPizzaBackend.Migrations
                         .HasColumnType("integer");
 
                     b.Property<string>("Phone")
-                        .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<decimal>("Tip")
+                    b.Property<decimal?>("Tip")
                         .HasColumnType("numeric");
 
-                    b.Property<decimal>("TotalPrice")
+                    b.Property<decimal?>("TotalPrice")
                         .HasColumnType("numeric");
 
                     b.Property<int>("UserId")
@@ -100,6 +97,29 @@ namespace HipHopPizzaBackend.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("HipHopPizzaBackend.Models.OrderItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ItemId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ItemId");
+
+                    b.HasIndex("OrderId");
+
+                    b.ToTable("OrderItems");
                 });
 
             modelBuilder.Entity("HipHopPizzaBackend.Models.PaymentType", b =>
@@ -133,7 +153,7 @@ namespace HipHopPizzaBackend.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("integer");
 
-                    b.Property<decimal>("OrderTotal")
+                    b.Property<decimal?>("OrderTotal")
                         .HasColumnType("numeric");
 
                     b.Property<string>("OrderType")
@@ -143,8 +163,8 @@ namespace HipHopPizzaBackend.Migrations
                     b.Property<int>("PaymentTypeId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Tip")
-                        .HasColumnType("integer");
+                    b.Property<decimal?>("Tip")
+                        .HasColumnType("numeric");
 
                     b.HasKey("Id");
 
@@ -178,21 +198,6 @@ namespace HipHopPizzaBackend.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("ItemOrder", b =>
-                {
-                    b.Property<int>("ItemsId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("OrdersId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("ItemsId", "OrdersId");
-
-                    b.HasIndex("OrdersId");
-
-                    b.ToTable("ItemOrder");
-                });
-
             modelBuilder.Entity("HipHopPizzaBackend.Models.Order", b =>
                 {
                     b.HasOne("HipHopPizzaBackend.Models.PaymentType", "PaymentType")
@@ -212,6 +217,25 @@ namespace HipHopPizzaBackend.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("HipHopPizzaBackend.Models.OrderItem", b =>
+                {
+                    b.HasOne("HipHopPizzaBackend.Models.Item", "Item")
+                        .WithMany("OrderItems")
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("HipHopPizzaBackend.Models.Order", "Order")
+                        .WithMany("OrderItems")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Item");
+
+                    b.Navigation("Order");
+                });
+
             modelBuilder.Entity("HipHopPizzaBackend.Models.Revenue", b =>
                 {
                     b.HasOne("HipHopPizzaBackend.Models.PaymentType", "PaymentType")
@@ -223,19 +247,14 @@ namespace HipHopPizzaBackend.Migrations
                     b.Navigation("PaymentType");
                 });
 
-            modelBuilder.Entity("ItemOrder", b =>
+            modelBuilder.Entity("HipHopPizzaBackend.Models.Item", b =>
                 {
-                    b.HasOne("HipHopPizzaBackend.Models.Item", null)
-                        .WithMany()
-                        .HasForeignKey("ItemsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                    b.Navigation("OrderItems");
+                });
 
-                    b.HasOne("HipHopPizzaBackend.Models.Order", null)
-                        .WithMany()
-                        .HasForeignKey("OrdersId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+            modelBuilder.Entity("HipHopPizzaBackend.Models.Order", b =>
+                {
+                    b.Navigation("OrderItems");
                 });
 
             modelBuilder.Entity("HipHopPizzaBackend.Models.PaymentType", b =>
