@@ -61,8 +61,8 @@ namespace HipHopPizzaBackend.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     OrderId = table.Column<int>(type: "integer", nullable: false),
                     PaymentTypeId = table.Column<int>(type: "integer", nullable: false),
-                    OrderTotal = table.Column<decimal>(type: "numeric", nullable: false),
-                    Tip = table.Column<int>(type: "integer", nullable: false),
+                    OrderTotal = table.Column<decimal>(type: "numeric", nullable: true),
+                    Tip = table.Column<decimal>(type: "numeric", nullable: true),
                     OrderType = table.Column<string>(type: "text", nullable: false),
                     DateClosed = table.Column<DateTime>(type: "timestamp without time zone", nullable: false)
                 },
@@ -86,14 +86,14 @@ namespace HipHopPizzaBackend.Migrations
                     UserId = table.Column<int>(type: "integer", nullable: false),
                     PaymentTypeId = table.Column<int>(type: "integer", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    Phone = table.Column<string>(type: "text", nullable: false),
-                    Email = table.Column<string>(type: "text", nullable: false),
+                    Phone = table.Column<string>(type: "text", nullable: true),
+                    Email = table.Column<string>(type: "text", nullable: true),
                     OrderType = table.Column<string>(type: "text", nullable: false),
-                    TotalPrice = table.Column<decimal>(type: "numeric", nullable: false),
+                    TotalPrice = table.Column<decimal>(type: "numeric", nullable: true),
                     isOpen = table.Column<bool>(type: "boolean", nullable: false),
-                    Tip = table.Column<decimal>(type: "numeric", nullable: false),
-                    DateClosed = table.Column<DateTime>(type: "timestamp without time zone", nullable: false),
-                    Comments = table.Column<string>(type: "text", nullable: false)
+                    Tip = table.Column<decimal>(type: "numeric", nullable: true),
+                    DateClosed = table.Column<DateTime>(type: "timestamp without time zone", nullable: true),
+                    Comments = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -113,33 +113,40 @@ namespace HipHopPizzaBackend.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "ItemOrder",
+                name: "OrderItems",
                 columns: table => new
                 {
-                    ItemsId = table.Column<int>(type: "integer", nullable: false),
-                    OrdersId = table.Column<int>(type: "integer", nullable: false)
+                    Id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    OrderId = table.Column<int>(type: "integer", nullable: false),
+                    ItemId = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ItemOrder", x => new { x.ItemsId, x.OrdersId });
+                    table.PrimaryKey("PK_OrderItems", x => x.Id);
                     table.ForeignKey(
-                        name: "FK_ItemOrder_Items_ItemsId",
-                        column: x => x.ItemsId,
+                        name: "FK_OrderItems_Items_ItemId",
+                        column: x => x.ItemId,
                         principalTable: "Items",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_ItemOrder_Orders_OrdersId",
-                        column: x => x.OrdersId,
+                        name: "FK_OrderItems_Orders_OrderId",
+                        column: x => x.OrderId,
                         principalTable: "Orders",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ItemOrder_OrdersId",
-                table: "ItemOrder",
-                column: "OrdersId");
+                name: "IX_OrderItems_ItemId",
+                table: "OrderItems",
+                column: "ItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_OrderItems_OrderId",
+                table: "OrderItems",
+                column: "OrderId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Orders_PaymentTypeId",
@@ -160,7 +167,7 @@ namespace HipHopPizzaBackend.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "ItemOrder");
+                name: "OrderItems");
 
             migrationBuilder.DropTable(
                 name: "Revenues");

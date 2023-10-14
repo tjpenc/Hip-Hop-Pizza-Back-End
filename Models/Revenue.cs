@@ -4,7 +4,7 @@
     {
         public int Id { get; set; }
         public int OrderId { get; set; }
-        public int PaymentTypeId { get; set; }
+        public int? PaymentTypeId { get; set; }
         public decimal? OrderTotal { get; set; }
         public decimal? Tip { get; set; }
         public string OrderType { get; set; }
