@@ -79,7 +79,7 @@ app.MapGet("/orders", (HipHopPizzaDbContext db) =>
     List<Order> orders = db.Orders.ToList();
     if (!orders.Any())
     {
-        return Results.NotFound("There are no orders in the system");
+        return Results.NoContent();
     }
     return Results.Ok(orders);
 });
@@ -139,9 +139,9 @@ app.MapPut("/orders/{id}", (HipHopPizzaDbContext db, int id, UpdateOrderDTO orde
     orderToUpdate.Email = order.Email;
     orderToUpdate.OrderType = order.OrderType;
 
-    db.Update(orderToUpdate);
-    db.SaveChanges();
-    return Results.Ok(orderToUpdate);
+        db.Update(orderToUpdate);
+        db.SaveChanges();
+        return Results.Ok(orderToUpdate);
 });
 
 //Delete Order
@@ -253,6 +253,11 @@ app.MapPost("/items", (HipHopPizzaDbContext db, CreateItemDTO item) =>
 app.MapPut("/items/{id}", (HipHopPizzaDbContext db, int id, UpdateItemDTO item) =>
 {
     Item itemToUpdate = db.Items.FirstOrDefault(i => i.Id == id);
+    if (itemToUpdate == null)
+    {
+        return Results.NotFound("This item does not exits");
+    }
+
     itemToUpdate.Name = item.Name;
     itemToUpdate.ImageUrl = item.ImageUrl;
     itemToUpdate.Price = item.Price;
@@ -268,7 +273,7 @@ app.MapDelete("/items/{id}", (HipHopPizzaDbContext db, int id) =>
     Item item = db.Items.FirstOrDefault(i => i.Id == id);
     if (item == null)
     {
-        return Results.NotFound("Item was not found");
+        return Results.NoContent();
     }
     db.Remove(item);
     db.SaveChanges();
@@ -278,28 +283,34 @@ app.MapDelete("/items/{id}", (HipHopPizzaDbContext db, int id) =>
 //Add item to order
 app.MapPost("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
 {
-    OrderItem orderItem = new OrderItem()
+    OrderItem newOrderItem = new OrderItem()
     {
         OrderId = orderId,
         ItemId = itemId,
-        //Quantity = itemCount
     };
 
-    db.OrderItems.Add(orderItem);
-    db.SaveChanges();
-    return Results.Ok(orderItem);
+    try
+    {
+        db.OrderItems.Add(newOrderItem);
+        db.SaveChanges();
+        return Results.Ok(newOrderItem);
+    }
+    catch (DbUpdateException)
+    {
+        return Results.Ok("Item was not created");
+    }
     //Possibilty of adding multiple items at a time
     //One endpoint for add item, one endpoint for update item
     //Create quantity property on OrderItem, update that when same item added twice
 });
 
 //Delete item from order
-app.MapDelete("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
+app.MapDelete("/orders/items/{orderItemId}", (HipHopPizzaDbContext db, int orderItemId) =>
 {
-    OrderItem orderItem = db.OrderItems.FirstOrDefault(oi => oi.OrderId == orderId && oi.ItemId == itemId);
+    OrderItem orderItem = db.OrderItems.FirstOrDefault(oi => oi.Id == orderItemId);
     if (orderItem == null)
     {
-        return Results.NoContent();
+        return Results.Ok("Item is not on the order");
     }
     db.OrderItems.Remove(orderItem);
     db.SaveChanges();
@@ -310,8 +321,26 @@ app.MapDelete("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int 
 app.MapGet("/orders/items/{orderId}/{itemId}", (HipHopPizzaDbContext db, int orderId, int itemId) =>
 {
     List<OrderItem> orderItems = db.OrderItems.Where(oi => oi.OrderId == orderId && oi.ItemId == itemId).ToList();
+    if (!orderItems.Any())
+    {
+        return Results.NoContent();
+    }
     int count = orderItems.Count();
     return Results.Ok(count);
+});
+
+//Get single orderItem
+app.MapGet("/orders/items/single/{orderItemId}", (HipHopPizzaDbContext db, int orderItemId) =>
+{
+    OrderItem orderItem = db.OrderItems
+        .Include(oi => oi.Item)
+        .FirstOrDefault(oi => oi.Id == orderItemId);
+
+    if (orderItem == null)
+    {
+        return Results.NoContent();
+    }
+    return Results.Ok(orderItem);
 });
 
 //Get all OrderItems for an order
@@ -321,11 +350,25 @@ app.MapGet("/orders/items/{orderId}", (HipHopPizzaDbContext db, int orderId) =>
         .Include(oi => oi.Item)
         .Where(oi => oi.OrderId == orderId).ToList();
 
-    if (orderItems.Count == 0)
+    if (!orderItems.Any())
     {
-        return Results.NotFound("There are no items in this order");
+        return Results.NoContent();
     }
     return Results.Ok(orderItems);
+});
+
+//Update orderItem
+app.MapPut("/orders/items/{itemId}/{orderItemId}", (HipHopPizzaDbContext db, int itemId, int orderItemId) =>
+{
+    OrderItem orderItem = db.OrderItems.FirstOrDefault(oi => oi.Id == orderItemId);
+    if (orderItem == null)
+    {
+        return Results.NoContent();
+    }
+    orderItem.ItemId = itemId;
+    db.OrderItems.Update(orderItem);
+    db.SaveChanges();
+    return Results.Ok(orderItem);
 });
 
 //Get all payment types
@@ -365,15 +408,27 @@ app.MapPost("/revenueNodes", (HipHopPizzaDbContext db, Order order) =>
         PaymentType = paymentType
     };
 
-    db.Revenues.Add(revenueNode);
-    db.SaveChanges();
-    return Results.Created($"/revenueNodes/{revenueNode.Id}", revenueNode);
+    try
+    {
+        db.Revenues.Add(revenueNode);
+        db.SaveChanges();
+        return Results.Created($"/revenueNodes/{revenueNode.Id}", revenueNode);
+    }
+    catch (DbUpdateException)
+    {
+        return Results.NoContent();
+    }
 });
 
 //Get total revenue
 app.MapGet("/revenue", (HipHopPizzaDbContext db) =>
 {
     List<Revenue> revenueNodes = db.Revenues.ToList();
+    if (!revenueNodes.Any())
+    {
+        return Results.NoContent();
+    }
+
     decimal? totalRevenue = 0;
     foreach (Revenue revenueNode in revenueNodes)
     {
